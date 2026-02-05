@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICC 2026 Simulator - 4D ISAC Digital Twin</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { background-color: #030712; color: white; font-family: sans-serif; }
+        canvas { background: radial-gradient(circle at center, #111827 0%, #030712 100%); }
+        input[type=range] {accent-color: #8b5cf6;}
+    </style>
+</head>
+<body class="p-6">
+
+<div class="max-w-7xl mx-auto">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold mb-2 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+            THz/Sub-THz ISAC Network Simulator - Luxembourg City
+        </h1>
+        <p class="text-gray-400">Ultra-High Frequency ISAC with RIS-Assisted Beam Steering for Micromobility</p>
+        <p class="text-sm text-purple-400 mt-1">ICC 2026 Workshop WS08 | THz Testbed | LIST Digital Twin</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="lg:col-span-2 bg-gray-900 rounded-lg p-4 border border-gray-800 relative">
+            <canvas id="simCanvas" width="800" height="600" class="w-full border border-gray-700 rounded shadow-2xl"></canvas>
+            <div class="absolute top-6 left-6 text-xs text-gray-500 font-mono">
+                Running: <span id="fps-counter" class="text-green-400">60 FPS</span>
+            </div>
+        </div>
+
+        <div class="space-y-4">
+
+            <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+                <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <i data-lucide="waves" class="text-purple-500"></i> Frequency Band
+                </h3>
+                <div class="space-y-2">
+                    <button id="btn-subthz" onclick="setFrequency('subthz')" class="w-full py-2 px-4 rounded transition-colors bg-cyan-600 text-white">
+                        Sub-THz (140 GHz D-band)
+                    </button>
+                    <button id="btn-thz" onclick="setFrequency('thz')" class="w-full py-2 px-4 rounded transition-colors bg-gray-700 text-gray-300 hover:bg-gray-600">
+                        THz (300 GHz)
+                    </button>
+                </div>
+                <div class="mt-3 p-3 bg-gray-800 rounded text-xs grid grid-cols-2 gap-2">
+                    <div><span class="text-gray-400">Range:</span> <span id="val-range" class="ml-2 text-cyan-400">500m</span></div>
+                    <div><span class="text-gray-400">Rate:</span> <span id="val-datarate" class="ml-2 text-green-400">10 Gbps</span></div>
+                </div>
+            </div>
+
+            <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+                <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <i data-lucide="activity" class="text-blue-500"></i> Network Metrics
+                </h3>
+                <div class="space-y-3" id="metrics-container">
+                    <div>
+                        <div class="flex justify-between text-sm mb-1"><span class="text-gray-400">Avg SINR</span><span id="metric-sinr" class="text-blue-400 font-mono">0 dB</span></div>
+                        <div class="w-full bg-gray-700 rounded-full h-2"><div id="bar-sinr" class="bg-blue-500 h-2 rounded-full" style="width: 0%"></div></div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-sm mb-1"><span class="text-gray-400">Sensing CRB</span><span id="metric-crb" class="text-green-400 font-mono">0 m²</span></div>
+                        <div class="w-full bg-gray-700 rounded-full h-2"><div id="bar-crb" class="bg-green-500 h-2 rounded-full" style="width: 0%"></div></div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-sm mb-1"><span class="text-gray-400">ISAC Coverage</span><span id="metric-cov" class="text-cyan-400 font-mono">0%</span></div>
+                        <div class="w-full bg-gray-700 rounded-full h-2"><div id="bar-cov" class="bg-cyan-500 h-2 rounded-full" style="width: 0%"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+                <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <i data-lucide="zap" class="text-yellow-500"></i> ISAC Parameters
+                </h3>
+                
+                <div class="mb-4">
+                    <label class="text-sm text-gray-400 block mb-2">α (Comm/Sensing Tradeoff): <span id="lbl-alpha">0.5</span></label>
+                    <input type="range" id="rng-alpha" min="0" max="1" step="0.05" value="0.5" class="w-full">
+                </div>
+
+                <div class="mb-4">
+                    <label class="text-sm text-gray-400 block mb-2">RIS Metasurfaces: <span id="lbl-ris">12</span></label>
+                    <input type="range" id="rng-ris" min="6" max="24" step="2" value="12" class="w-full">
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="toggleSimulation()" id="btn-toggle" class="flex-1 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-700 hover:to-purple-700 text-white py-2 px-4 rounded flex items-center justify-center gap-2">
+                        <i data-lucide="play" class="w-4 h-4"></i> <span id="txt-toggle">Start</span>
+                    </button>
+                    <button onclick="resetSimulation()" class="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+                <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <i data-lucide="download" class="text-green-500"></i> Export Reports
+                </h3>
+                <div class="grid grid-cols-1 gap-2">
+                    <button onclick="downloadReport('communication')" class="bg-cyan-900 hover:bg-cyan-800 text-cyan-100 py-2 px-4 rounded text-xs flex items-center gap-2">
+                        📡 Export Comm Coverage
+                    </button>
+                    <button onclick="downloadReport('sensing')" class="bg-green-900 hover:bg-green-800 text-green-100 py-2 px-4 rounded text-xs flex items-center gap-2">
+                        🎯 Export Sensing Map
+                    </button>
+                    <button onclick="downloadReport('combined')" class="bg-purple-900 hover:bg-purple-800 text-purple-100 py-2 px-4 rounded text-xs flex items-center gap-2">
+                        ⚡ Export Joint ISAC View
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    // Inicializar Iconos
+    lucide.createIcons();
+
+    // ==========================================
+    // ESTADO DEL SIMULADOR
+    // ==========================================
+    const state = {
+        frequency: 'subthz', // subthz | thz
+        alpha: 0.5,
+        numRIS: 12,
+        beamWidth: 20,
+        isRunning: false,
+        time: 0,
+        nodes: []
+    };
+
+    const freqConfig = {
+        subthz: { name: 'Sub-THz', freq: '140 GHz', range: 500, dataRate: 10, penetration: 0.4 },
+        thz: { name: 'THz', freq: '300 GHz', range: 100, dataRate: 100, penetration: 0.1 }
+    };
+
+    // ==========================================
+    // INICIALIZACIÓN DE NODOS (AGENTS)
+    // ==========================================
+    function initNodes() {
+        state.nodes = [];
+        // Generar Vehículos V2X (Lentos, predecibles)
+        for(let i=0; i<5; i++) {
+            state.nodes.push({
+                id: `v2x-${i}`, type: 'vehicle',
+                x: Math.random() * 800, y: Math.random() * 600, z: 0,
+                vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5,
+                connected: true
+            });
+        }
+        // Generar E-Scooters (Rápidos, erráticos, SWaP constrained)
+        for(let i=0; i<8; i++) {
+            state.nodes.push({
+                id: `scoot-${i}`, type: 'scooter',
+                x: Math.random() * 800, y: Math.random() * 600, z: 0,
+                vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3,
+                connected: false // Pasivos, necesitan radar
+            });
+        }
+    }
+    initNodes();
+
+    // ==========================================
+    // MOTOR DE DIBUJO Y LÓGICA 3D
+    // ==========================================
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Proyección isométrica simple 3D -> 2D
+    function project(x, y, z) {
+        const isoX = (x - y) * Math.cos(0.5236) + 400; // 400 es offset centro
+        const isoY = (x + y) * Math.sin(0.5236) - z + 100;
+        return { x: isoX, y: isoY };
+    }
+
+    function draw() {
+        // Limpiar y fondo
+        ctx.fillStyle = '#111827';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 1. Dibujar Grid (Suelo)
+        ctx.strokeStyle = '#374151';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 20; i++) {
+            const start = project(i * 40 - 400, -400, 0);
+            const end = project(i * 40 - 400, 400, 0);
+            ctx.beginPath(); ctx.moveTo(start.x, start.y); ctx.lineTo(end.x, end.y); ctx.stroke();
+            
+            const start2 = project(-400, i * 40 - 400, 0);
+            const end2 = project(400, i * 40 - 400, 0);
+            ctx.beginPath(); ctx.moveTo(start2.x, start2.y); ctx.lineTo(end2.x, end2.y); ctx.stroke();
+        }
+
+        // 2. Dibujar Edificios (Canyon Urbano)
+        // Simulamos 5 edificios bloqueantes
+        const buildings = [
+            {x: -200, y: -200, w: 100, h: 100, z: 150},
+            {x: 100, y: 100, w: 80, h: 80, z: 120},
+            {x: -150, y: 100, w: 120, h: 60, z: 100},
+            {x: 200, y: -150, w: 60, h: 150, z: 180},
+        ];
+
+        buildings.forEach(b => {
+            const topColor = 'rgba(55, 65, 81, 0.9)'; // Techo
+            const sideColor = 'rgba(31, 41, 55, 0.8)'; // Paredes
+            
+            // Base
+            const p1 = project(b.x, b.y, 0);
+            const p2 = project(b.x + b.w, b.y, 0);
+            const p3 = project(b.x + b.w, b.y + b.h, 0);
+            const p4 = project(b.x, b.y + b.h, 0);
+            
+            // Techo
+            const t1 = project(b.x, b.y, b.z);
+            const t2 = project(b.x + b.w, b.y, b.z);
+            const t3 = project(b.x + b.w, b.y + b.h, b.z);
+            const t4 = project(b.x, b.y + b.h, b.z);
+
+            // Dibujar Paredes
+            ctx.fillStyle = sideColor;
+            ctx.beginPath(); ctx.moveTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y); ctx.lineTo(t3.x, t3.y); ctx.lineTo(t2.x, t2.y); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.lineTo(t4.x, t4.y); ctx.lineTo(t3.x, t3.y); ctx.fill(); ctx.stroke();
+
+            // Dibujar Techo
+            ctx.fillStyle = topColor;
+            ctx.beginPath(); ctx.moveTo(t1.x, t1.y); ctx.lineTo(t2.x, t2.y); ctx.lineTo(t3.x, t3.y); ctx.lineTo(t4.x, t4.y); ctx.closePath(); ctx.fill(); ctx.stroke();
+        });
+
+        // 3. gNodeB (Estación Base ISAC)
+        const gnbPos = project(0, 0, 200);
+        
+        // Ondas ISAC
+        if (state.isRunning) {
+            ctx.strokeStyle = `rgba(139, 92, 246, ${0.5 + Math.sin(Date.now() / 200) * 0.2})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(gnbPos.x, gnbPos.y, 40, 20, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.ellipse(gnbPos.x, gnbPos.y, 80, 40, 0, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        ctx.fillStyle = '#ef4444'; // Rojo gNB
+        ctx.beginPath(); ctx.arc(gnbPos.x, gnbPos.y, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'white'; ctx.fillText("gNB ISAC", gnbPos.x + 10, gnbPos.y);
+
+        // 4. RIS (Superficies Inteligentes) - Generadas dinámicamente según slider
+        for(let i=0; i<state.numRIS; i++) {
+            const angle = (i / state.numRIS) * Math.PI * 2;
+            const radius = 300;
+            const rx = Math.cos(angle) * radius;
+            const ry = Math.sin(angle) * radius;
+            const rPos = project(rx, ry, 50); // Altura media
+
+            ctx.fillStyle = '#fbbf24'; // Amarillo RIS
+            ctx.fillRect(rPos.x - 4, rPos.y - 4, 8, 8);
+            
+            // Enlace gNB -> RIS (Backhaul virtual)
+            ctx.strokeStyle = 'rgba(251, 191, 36, 0.1)';
+            ctx.beginPath(); ctx.moveTo(gnbPos.x, gnbPos.y); ctx.lineTo(rPos.x, rPos.y); ctx.stroke();
+        }
+
+        // 5. Agentes (Vehículos y Scooters)
+        let activeLinks = 0;
+        let detected = 0;
+
+        state.nodes.forEach(node => {
+            // Posición centrada relativa (mapeo burdo para demo)
+            const mapX = node.x - 400; 
+            const mapY = node.y - 300;
+            const pos = project(mapX, mapY, 0);
+            
+            const distToGnb = Math.sqrt(mapX*mapX + mapY*mapY);
+            const cfg = freqConfig[state.frequency];
+            const isCovered = distToGnb < cfg.range;
+
+            // Lógica de Enlace (Linea de vista simple)
+            let isLoS = isCovered; 
+            // Checkeo simple de bloqueo: si está "detrás" de un edificio (aprox)
+            // (Lógica simplificada para visualización)
+            if (mapX > 0 && mapY > 0 && mapX < 200) isLoS = false; 
+
+            // Dibujar Enlace
+            if (isCovered) {
+                if (isLoS) {
+                    ctx.strokeStyle = 'rgba(34, 197, 94, 0.4)'; // Verde (LoS)
+                    ctx.setLineDash([]);
+                    activeLinks++;
+                } else {
+                    // NLoS soportado por RIS
+                    ctx.strokeStyle = 'rgba(251, 191, 36, 0.3)'; // Amarillo (RIS Reflection)
+                    ctx.setLineDash([5, 5]);
+                    activeLinks++; // Contamos RIS como activo
+                }
+                ctx.beginPath(); ctx.moveTo(gnbPos.x, gnbPos.y); ctx.lineTo(pos.x, pos.y); ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Sensado (Si no está conectado o es vehículo)
+            // ISAC detecta siempre que esté en rango, incluso si no hay datos
+            if (isCovered) {
+                detected++;
+                // Eco de radar
+                ctx.fillStyle = 'rgba(236, 72, 153, 0.3)';
+                ctx.beginPath(); ctx.arc(pos.x, pos.y, 10, 0, Math.PI*2); ctx.fill();
+            }
+
+            // Dibujar Nodo
+            ctx.fillStyle = node.type === 'vehicle' ? '#ffffff' : '#3b82f6'; // Blanco V2X, Azul Scooter
+            const size = node.type === 'vehicle' ? 6 : 4;
+            ctx.beginPath();
+            // Dibujar cubo simple o círculo
+            ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // Actualizar métricas globales para la UI
+        updateMetricsUI(activeLinks, detected);
+    }
+
+    // ==========================================
+    // FÍSICA Y BUCLE PRINCIPAL
+    // ==========================================
+    function updatePhysics() {
+        state.nodes.forEach(node => {
+            node.x += node.vx;
+            node.y += node.vy;
+
+            // Rebote en bordes
+            if(node.x < 0 || node.x > 800) node.vx *= -1;
+            if(node.y < 0 || node.y > 600) node.vy *= -1;
+        });
+        state.time += 0.05;
+    }
+
+    function loop() {
+        if (state.isRunning) {
+            updatePhysics();
+        }
+        draw();
+        requestAnimationFrame(loop);
+    }
+    
+    // Iniciar bucle
+    loop();
+
+    // ==========================================
+    // GESTIÓN DE INTERFAZ Y EVENTOS
+    // ==========================================
+    
+    // Sliders
+    document.getElementById('rng-alpha').addEventListener('input', (e) => {
+        state.alpha = parseFloat(e.target.value);
+        document.getElementById('lbl-alpha').innerText = state.alpha;
+    });
+    document.getElementById('rng-ris').addEventListener('input', (e) => {
+        state.numRIS = parseInt(e.target.value);
+        document.getElementById('lbl-ris').innerText = state.numRIS;
+    });
+
+    // Toggle Frecuencia
+    function setFrequency(freq) {
+        state.frequency = freq;
+        const cfg = freqConfig[freq];
+        
+        // Actualizar UI Botones
+        const btnSub = document.getElementById('btn-subthz');
+        const btnThz = document.getElementById('btn-thz');
+        
+        if (freq === 'subthz') {
+            btnSub.className = "w-full py-2 px-4 rounded transition-colors bg-cyan-600 text-white";
+            btnThz.className = "w-full py-2 px-4 rounded transition-colors bg-gray-700 text-gray-300 hover:bg-gray-600";
+        } else {
+            btnSub.className = "w-full py-2 px-4 rounded transition-colors bg-gray-700 text-gray-300 hover:bg-gray-600";
+            btnThz.className = "w-full py-2 px-4 rounded transition-colors bg-purple-600 text-white";
+        }
+
+        // Actualizar textos info
+        document.getElementById('val-range').innerText = cfg.range + "m";
+        document.getElementById('val-datarate').innerText = cfg.dataRate + " Gbps";
+    }
+
+    // Toggle Simulación
+    function toggleSimulation() {
+        state.isRunning = !state.isRunning;
+        const btn = document.getElementById('btn-toggle');
+        const txt = document.getElementById('txt-toggle');
+        
+        if (state.isRunning) {
+            txt.innerText = "Pause";
+            // Icon logic can be added here
+        } else {
+            txt.innerText = "Start";
+        }
+    }
+
+    function resetSimulation() {
+        initNodes();
+        state.isRunning = false;
+        document.getElementById('txt-toggle').innerText = "Start";
+    }
+
+    // Actualizar Barras de Métricas
+    function updateMetricsUI(activeLinks, detectedCount) {
+        const totalNodes = state.nodes.length;
+        const coveragePct = (activeLinks / totalNodes) * 100;
+        
+        // Cálculos ficticios basados en física para la demo
+        const cfg = freqConfig[state.frequency];
+        // SINR mejora con más RIS y menor distancia (simulado)
+        let sinr = 15 + (state.numRIS * 0.5) - (state.frequency === 'thz' ? 5 : 0); 
+        // CRB mejora con alpha (más recursos a sensing) y frecuencia alta
+        let crb = 0.5 - (state.alpha * 0.3) - (state.frequency === 'thz' ? 0.1 : 0);
+        if (crb < 0.001) crb = 0.001;
+
+        // Actualizar DOM
+        document.getElementById('metric-sinr').innerText = sinr.toFixed(1) + " dB";
+        document.getElementById('bar-sinr').style.width = Math.min(100, (sinr/40)*100) + "%";
+
+        document.getElementById('metric-crb').innerText = crb.toFixed(3) + " m²";
+        document.getElementById('bar-crb').style.width = ((1 - Math.min(1, crb)) * 100) + "%"; // Inverso
+
+        document.getElementById('metric-cov').innerText = coveragePct.toFixed(1) + "%";
+        document.getElementById('bar-cov').style.width = coveragePct + "%";
+    }
+
+    // ==========================================
+    // EXPORTACIÓN DE IMÁGENES (NUEVA FUNCIÓN)
+    // ==========================================
+    function downloadReport(type) {
+        // Guardar estado actual del canvas
+        const currentData = ctx.getImageData(0,0, canvas.width, canvas.height);
+        
+        // Dibujar superposiciones de texto para el reporte
+        ctx.save();
+        
+        // Fondo semi-transparente para header
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, canvas.width, 120);
+        
+        // Título Principal
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 28px sans-serif';
+        const cfg = freqConfig[state.frequency];
+        
+        let title = "";
+        if (type === 'communication') title = `📡 ${cfg.name} Comm Coverage - 4D ISAC`;
+        if (type === 'sensing') title = `🎯 ${cfg.name} Sensing - Precision Detection`;
+        if (type === 'combined') title = `⚡ Joint ISAC - Luxembourg Testbed`;
+        
+        ctx.fillText(title, 30, 50);
+
+        // Subtítulo técnico
+        ctx.font = '16px monospace';
+        ctx.fillStyle = '#a78bfa'; // Purple light
+        ctx.fillText(`ICC 2026 | LIST Institute | Freq: ${cfg.freq}`, 30, 80);
+
+        // Footer con métricas
+        ctx.fillStyle = 'rgba(0,0,0,0.8)';
+        ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
+        ctx.fillStyle = '#22d3ee'; // Cyan
+        ctx.font = '14px monospace';
+        
+        const metricsText = `α=${state.alpha} | RIS=${state.numRIS} | Range=${cfg.range}m | DataRate=${cfg.dataRate}Gbps`;
+        ctx.fillText(metricsText, 30, canvas.height - 25);
+
+        // Descargar
+        const link = document.createElement('a');
+        link.download = `ICC2026_Report_${type}_${Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+
+        // Restaurar canvas original (para seguir animando sin el texto pegado)
+        // En el siguiente frame del loop se limpiará, pero esto evita parpadeo
+        ctx.restore();
+    }
+
+</script>
+
+</body>
+</html>

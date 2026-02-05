@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4D ISAC Simulation - ICC 2026 Workshop</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #00c9ff, #92fe9d);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            color: #a0e7ff;
+            margin-bottom: 20px;
+        }
+        
+        .control-panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .control-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .control-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #92fe9d;
+            font-weight: 600;
+        }
+        
+        input[type="range"], select {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+        }
+        
+        .value-display {
+            display: inline-block;
+            margin-left: 10px;
+            background: rgba(0, 200, 255, 0.2);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            background: linear-gradient(90deg, #00c9ff, #00a8ff);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 201, 255, 0.4);
+        }
+        
+        button.reset {
+            background: linear-gradient(90deg, #ff416c, #ff4b2b);
+        }
+        
+        .visualization-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .plot-container {
+            flex: 1;
+            min-width: 400px;
+            height: 500px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .plot-title {
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-weight: bold;
+            color: #00c9ff;
+        }
+        
+        .plot-area {
+            width: 100%;
+            height: calc(100% - 50px);
+        }
+        
+        .info-panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .info-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #00c9ff;
+        }
+        
+        .info-card h3 {
+            color: #92fe9d;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .stat-value {
+            font-weight: bold;
+            color: #00c9ff;
+        }
+        
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+        }
+        
+        @media (max-width: 768px) {
+            .control-row, .visualization-area {
+                flex-direction: column;
+            }
+            
+            .plot-container {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>4D ISAC Simulation - Integrated Sensing and Communication Networks</h1>
+            <p class="subtitle">ICC 2026 Workshop | Context: Urban Luxembourg | Digital Twin for V2X</p>
+        </header>
+        
+        <div class="control-panel">
+            <div class="control-row">
+                <div class="control-group">
+                    <label for="numScooters">Number of E-Scooters: <span id="scooterValue" class="value-display">8</span></label>
+                    <input type="range" id="numScooters" min="1" max="20" value="8" step="1">
+                </div>
+                <div class="control-group">
+                    <label for="numVehicles">Number of V2X Vehicles: <span id="vehicleValue" class="value-display">5</span></label>
+                    <input type="range" id="numVehicles" min="1" max="15" value="5" step="1">
+                </div>
+                <div class="control-group">
+                    <label for="commRange">Communication Range (m): <span id="rangeValue" class="value-display">70</span></label>
+                    <input type="range" id="commRange" min="30" max="120" value="70" step="5">
+                </div>
+            </div>
+            
+            <div class="buttons">
+                <button id="runSimulation">Run Simulation</button>
+                <button id="resetSimulation" class="reset">Reset</button>
+                <button id="exportData">Export Data</button>
+            </div>
+        </div>
+        
+        <div class="visualization-area">
+            <div class="plot-container">
+                <div class="plot-title">Fig 1: Communication Coverage in Urban Canyon</div>
+                <div id="plot1" class="plot-area"></div>
+            </div>
+            
+            <div class="plot-container">
+                <div class="plot-title">Fig 2: ISAC Sensing (Radar Beams) & Target Detection</div>
+                <div id="plot2" class="plot-area"></div>
+            </div>
+            
+            <div class="plot-container">
+                <div class="plot-title">Fig 3: Integrated 4D Digital Twin (Communication + Sensing)</div>
+                <div id="plot3" class="plot-area"></div>
+            </div>
+        </div>
+        
+        <div class="info-panel">
+            <div class="info-grid">
+                <div class="info-card">
+                    <h3>Simulation Statistics</h3>
+                    <div class="stat-item">
+                        <span>Total Agents:</span>
+                        <span id="totalAgents" class="stat-value">13</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>LoS Links (Green):</span>
+                        <span id="losLinks" class="stat-value">7</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>NLoS Links (Yellow):</span>
+                        <span id="nlosLinks" class="stat-value">4</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Detected Targets:</span>
+                        <span id="detectedTargets" class="stat-value">9</span>
+                    </div>
+                </div>
+                
+                <div class="info-card">
+                    <h3>Environment Parameters</h3>
+                    <div class="stat-item">
+                        <span>Area Size:</span>
+                        <span class="stat-value">100×100 m</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>gNB Position:</span>
+                        <span class="stat-value">(30, 30, 25)</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Generated Buildings:</span>
+                        <span class="stat-value">12</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Beam Width:</span>
+                        <span class="stat-value">5°</span>
+                    </div>
+                </div>
+                
+                <div class="info-card">
+                    <h3>System Status</h3>
+                    <div class="stat-item">
+                        <span>Total Coverage:</span>
+                        <span id="coveragePercent" class="stat-value">84.6%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Estimated Latency:</span>
+                        <span class="stat-value">3.2 ms</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Average Throughput:</span>
+                        <span class="stat-value">2.1 Gbps</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Sensing Accuracy:</span>
+                        <span class="stat-value">±0.5 m</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #FF0000;"></div>
+                    <span>ISAC gNB (Base Station)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #0000FF;"></div>
+                    <span>E-Scooter</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #000000;"></div>
+                    <span>V2X Vehicle</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #00FF00;"></div>
+                    <span>LoS Link (Strong)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #FFA500;"></div>
+                    <span>NLoS Link (Weak)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #00FFFF;"></div>
+                    <span>Radar Beam</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #FF00FF;"></div>
+                    <span>Detected Echo</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Initial configuration
+        const AREA_SIZE = 100;
+        const NUM_BUILDINGS = 12;
+        const GNB_POS = [30, 30, 25];
+        const BUILDING_HEIGHTS = [15, 20, 25, 30, 35];
+        
+        // Simulation state
+        let simulationState = {
+            numScooters: 8,
+            numVehicles: 5,
+            commRange: 70,
+            buildings: [],
+            scooters: [],
+            vehicles: [],
+            losLinks: 0,
+            nlosLinks: 0,
+            detectedTargets: 0
+        };
+        
+        // Initialize visualizations
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSimulation();
+            setupEventListeners();
+            updateDisplays();
+        });
+        
+        function initializeSimulation() {
+            generateBuildings();
+            generateAgents();
+            createAllPlots();
+        }
+        
+        function generateBuildings() {
+            simulationState.buildings = [];
+            const gridSize = AREA_SIZE / 3;
+            
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    const x = i * gridSize + 5;
+                    const y = j * gridSize + 5;
+                    const dx = gridSize - 10;
+                    const dy = gridSize - 10;
+                    const dz = BUILDING_HEIGHTS[Math.floor(Math.random() * BUILDING_HEIGHTS.length)];
+                    
+                    simulationState.buildings.push({
+                        x: x, y: y, z: 0,
+                        dx: dx, dy: dy, dz: dz,
+                        vertices: [
+                            [x, y, 0], [x+dx, y, 0], [x+dx, y+dy, 0], [x, y+dy, 0],
+                            [x, y, dz], [x+dx, y, dz], [x+dx, y+dy, dz], [x, y+dy, dz]
+                        ]
+                    });
+                }
+            }
+        }
+        
+        function generateAgents() {
+            simulationState.scooters = [];
+            simulationState.vehicles = [];
+            
+            // Generate scooters
+            for (let i = 0; i < simulationState.numScooters; i++) {
+                let placed = false;
+                while (!placed) {
+                    const x = Math.random() * AREA_SIZE;
+                    const y = Math.random() * AREA_SIZE;
+                    const z = 0.5;
+                    
+                    if (!isInBuilding(x, y)) {
+                        simulationState.scooters.push([x, y, z]);
+                        placed = true;
+                    }
+                }
+            }
+            
+            // Generate vehicles
+            for (let i = 0; i < simulationState.numVehicles; i++) {
+                let placed = false;
+                while (!placed) {
+                    const x = Math.random() * AREA_SIZE;
+                    const y = Math.random() * AREA_SIZE;
+                    const z = 1.5;
+                    
+                    if (!isInBuilding(x, y)) {
+                        simulationState.vehicles.push([x, y, z]);
+                        placed = true;
+                    }
+                }
+            }
+        }
+        
+        function isInBuilding(x, y) {
+            for (const b of simulationState.buildings) {
+                if (x >= b.x && x <= b.x + b.dx && 
+                    y >= b.y && y <= b.y + b.dy) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        function checkLOS(p1, p2) {
+            // Simplified algorithm to check line of sight
+            const steps = 20;
+            for (let i = 0; i <= steps; i++) {
+                const t = i / steps;
+                const x = p1[0] + t * (p2[0] - p1[0]);
+                const y = p1[1] + t * (p2[1] - p1[1]);
+                const z = p1[2] + t * (p2[2] - p1[2]);
+                
+                for (const b of simulationState.buildings) {
+                    if (x >= b.x && x <= b.x + b.dx && 
+                        y >= b.y && y <= b.y + b.dy &&
+                        z <= b.dz) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+        
+        function calculateDistance(p1, p2) {
+            const dx = p1[0] - p2[0];
+            const dy = p1[1] - p2[1];
+            const dz = p1[2] - p2[2];
+            return Math.sqrt(dx*dx + dy*dy + dz*dz);
+        }
+        
+        function createAllPlots() {
+            createPlot1();
+            createPlot2();
+            createPlot3();
+            updateStatistics();
+        }
+        
+        function createPlot1() {
+            const traces = [];
+            
+            // Draw buildings
+            simulationState.buildings.forEach(building => {
+                traces.push({
+                    type: 'mesh3d',
+                    x: building.vertices.map(v => v[0]),
+                    y: building.vertices.map(v => v[1]),
+                    z: building.vertices.map(v => v[2]),
+                    i: [0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5],
+                    j: [1, 2, 3, 4, 5, 6, 7, 5, 6, 7, 6, 6],
+                    k: [2, 3, 0, 5, 6, 7, 3, 6, 7, 4, 5, 7],
+                    opacity: 0.4,
+                    color: 'gray',
+                    name: 'Building',
+                    showlegend: false
+                });
+            });
+            
+            // Draw gNB
+            traces.push({
+                type: 'scatter3d',
+                mode: 'markers',
+                x: [GNB_POS[0]],
+                y: [GNB_POS[1]],
+                z: [GNB_POS[2]],
+                marker: {
+                    size: 10,
+                    color: 'red',
+                    symbol: 'triangle-up'
+                },
+                name: 'ISAC gNB'
+            });
+            
+            // Draw scooters
+            const scooterX = simulationState.scooters.map(s => s[0]);
+            const scooterY = simulationState.scooters.map(s => s[1]);
+            const scooterZ = simulationState.scooters.map(s => s[2]);
+            
+            traces.push({
+                type: 'scatter3d',
+                mode: 'markers',
+                x: scooterX,
+                y: scooterY,
+                z: scooterZ,
+                marker: {
+                    size: 5,
+                    color: 'blue'
+                },
+                name: 'E-Scooter'
+            });
+            
+            // Draw vehicles
+            const vehicleX = simulationState.vehicles.map(v => v[0]);
+            const vehicleY = simulationState.vehicles.map(v => v[1]);
+            const vehicleZ = simulationState.vehicles.map(v => v[2]);
+            
+            traces.push({
+                type: 'scatter3d',
+                mode: 'markers',
+                x: vehicleX,
+                y: vehicleY,
+                z: vehicleZ,
+                marker: {
+                    size: 8,
+                    color: 'black',
+                    symbol: 'square'
+                },
+                name: 'V2X Vehicle'
+            });
+            
+            // Draw communication links
+            simulationState.losLinks = 0;
+            simulationState.nlosLinks = 0;
+            
+            const allAgents = [...simulationState.scooters, ...simulationState.vehicles];
+            
+            allAgents.forEach(agent => {
+                const dist = calculateDistance(GNB_POS, agent);
+                const hasLOS = checkLOS(GNB_POS, agent);
+                
+                if (dist < simulationState.commRange && hasLOS) {
+                    traces.push({
+                        type: 'scatter3d',
+                        mode: 'lines',
+                        x: [GNB_POS[0], agent[0]],
+                        y: [GNB_POS[1], agent[1]],
+                        z: [GNB_POS[2], agent[2]],
+                        line: {
+                            color: 'green',
+                            width: 3
+                        },
+                        showlegend: false,
+                        opacity: 0.6
+                    });
+                    simulationState.losLinks++;
+                } else if (dist < simulationState.commRange * 1.2 && !hasLOS) {
+                    traces.push({
+                        type: 'scatter3d',
+                        mode: 'lines',
+                        x: [GNB_POS[0], agent[0]],
+                        y: [GNB_POS[1], agent[1]],
+                        z: [GNB_POS[2], agent[2]],
+                        line: {
+                            color: 'orange',
+                            width: 2,
+                            dash: 'dash'
+                        },
+                        showlegend: false,
+                        opacity: 0.4
+                    });
+                    simulationState.nlosLinks++;
+                }
+            });
+            
+            // Plot layout configuration
+            const layout = {
+                title: 'Communication Coverage in Urban Canyon',
+                scene: {
+                    xaxis: { title: 'X (m)', range: [0, AREA_SIZE] },
+                    yaxis: { title: 'Y (m)', range: [0, AREA_SIZE] },
+                    zaxis: { title: 'Z (m)', range: [0, 40] },
+                    aspectratio: { x: 1, y: 1, z: 0.4 }
+                },
+                margin: { l: 0, r: 0, b: 0, t: 40 },
+                showlegend: true,
+                legend: { x: 0, y: 1 }
+            };
+            
+            Plotly.newPlot('plot1', traces, layout);
+        }
+        
+        function createPlot2() {
+            const traces = [];
+            
+            // Draw buildings
+            simulationState.buildings.forEach(building => {
+                traces.push({
+                    type: 'mesh3d',
+                    x: building.vertices.map(v => v[0]),
+                    y: building.vertices.map(v => v[1]),
+                    z: building.vertices.map(v => v[2]),
+                    i: [0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5],
+                    j: [1, 2, 3, 4, 5, 6, 7, 5, 6, 7, 6, 6],
+                    k: [2, 3, 0, 5, 6, 7, 3, 6, 7, 4, 5, 7],
+                    opacity: 0.3,
+                    color: 'gray',
+                    showlegend: false
+                });
+            });
+            
+            // Draw gNB
+            traces.push({
+                type: 'scatter3d',
+                mode: 'markers',
+                x: [GNB_POS[0]],
+                y: [GNB_POS[1]],
+                z: [GNB_POS[2]],
+                marker: {
+                    size: 10,
+                    color: 'red',
+                    symbol: 'triangle-up'
+                },
+                name: 'ISAC gNB'
+            });
+            
+            // Draw real agents (low opacity)
+            const allAgents = [...simulationState.scooters, ...simulationState.vehicles];
+            const agentX = allAgents.map(a => a[0]);
+            const agentY = allAgents.map(a => a[1]);
+            const agentZ = allAgents.map(a => a[2]);
+            
+            traces.push({
+                type: 'scatter3d',
+                mode: 'markers',
+                x: agentX,
+                y: agentY,
+                z: agentZ,
+                marker: {
+                    size: 4,
+                    color: 'rgba(0, 0, 255, 0.3)',
+                    symbol: 'circle'
+                },
+                name: 'Real Agents',
+                showlegend: false
+            });
+            
+            // Simulate radar beams and detections
+            simulationState.detectedTargets = 0;
+            
+            allAgents.forEach(agent => {
+                const hasLOS = checkLOS(GNB_POS, agent);
+                
+                if (hasLOS) {
+                    // Draw radar beam
+                    traces.push({
+                        type: 'scatter3d',
+                        mode: 'lines',
+                        x: [GNB_POS[0], agent[0]],
+                        y: [GNB_POS[1], agent[1]],
+                        z: [GNB_POS[2], agent[2]],
+                        line: {
+                            color: 'cyan',
+                            width: 1.5
+                        },
+                        showlegend: false,
+                        opacity: 0.8
+                    });
+                    
+                    // Draw detection
+                    traces.push({
+                        type: 'scatter3d',
+                        mode: 'markers',
+                        x: [agent[0]],
+                        y: [agent[1]],
+                        z: [agent[2] + 1],
+                        marker: {
+                            size: 8,
+                            color: 'magenta',
+                            symbol: 'star'
+                        },
+                        showlegend: false
+                    });
+                    
+                    simulationState.detectedTargets++;
+                }
+            });
+            
+            // Layout
+            const layout = {
+                title: 'ISAC Sensing and Target Detection',
+                scene: {
+                    xaxis: { title: 'X (m)', range: [0, AREA_SIZE] },
+                    yaxis: { title: 'Y (m)', range: [0, AREA_SIZE] },
+                    zaxis: { title: 'Z (m)', range: [0, 40] },
+                    aspectratio: { x: 1, y: 1, z: 0.4 }
+                },
+                margin: { l: 0, r: 0, b: 0, t: 40 }
+            };
+            
+            Plotly.newPlot('plot2', traces, layout);
+        }
+        
+        function createPlot3() {
+            const traces = [];
+            
+            // Draw buildings
+            simulationState.buildings.forEach(building => {
+                traces.push({
+                    type: 'mesh3d',
+                    x: building.vertices.map(v => v[0]),
+                    y: building.vertices.map(v => v[1]),
+                    z: building.vertices.map(v => v[2]),
+                    i: [0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5],
+                    j: [1, 2, 3, 4, 5, 6, 7, 5, 6, 7, 6, 6],
+                    k: [2, 3, 0, 5, 6, 7, 3, 6, 7, 4, 5, 7],
+                    opacity: 0.3,
+                    color: 'gray',
+                    showlegend: false
+                });
+            });
+            
+            // Draw gNB
+            traces.push({
+                type: 'scatter3d',
+                mode: 'markers',
+                x: [GNB_POS[0]],
+                y: [GNB_POS[1]],
+                z: [GNB_POS[2]],
+                marker: {
+                    size: 10,
+                    color: 'red',
+                    symbol: 'triangle-up'
+                },
+                name: 'ISAC gNB'
+            });
+            
+            // Draw real agents
+            const allAgents = [...simulationState.scooters, ...simulationState.vehicles];
+            
+            // Draw digital twin estimates (detected positions)
+            const detectedAgents = allAgents.filter(agent => checkLOS(GNB_POS, agent));
+            
+            detectedAgents.forEach(agent => {
+                // Draw estimated bounding box
+                traces.push({
+                    type: 'scatter3d',
+                    mode: 'markers',
+                    x: [agent[0]],
+                    y: [agent[1]],
+                    z: [agent[2]],
+                    marker: {
+                        size: 15,
+                        color: 'rgba(255, 0, 255, 0)',
+                        symbol: 'circle-open',
+                        line: {
+                            color: 'magenta',
+                            width: 2
+                        }
+                    },
+                    name: 'Estimated Position (Digital Twin)',
+                    showlegend: false
+                });
+            });
+            
+            // Draw communication links with colors based on quality
+            allAgents.forEach(agent => {
+                const dist = calculateDistance(GNB_POS, agent);
+                const hasLOS = checkLOS(GNB_POS, agent);
+                
+                let lineColor = 'red';
+                let lineWidth = 1;
+                let lineStyle = 'solid';
+                
+                if (dist < simulationState.commRange && hasLOS) {
+                    lineColor = 'lime';
+                    lineWidth = 2.5;
+                } else if (dist < simulationState.commRange * 1.2 && !hasLOS) {
+                    lineColor = 'yellow';
+                    lineWidth = 1.5;
+                    lineStyle = 'dash';
+                }
+                
+                traces.push({
+                    type: 'scatter3d',
+                    mode: 'lines',
+                    x: [GNB_POS[0], agent[0]],
+                    y: [GNB_POS[1], agent[1]],
+                    z: [GNB_POS[2], agent[2]],
+                    line: {
+                        color: lineColor,
+                        width: lineWidth,
+                        dash: lineStyle === 'dash' ? 'dash' : 'solid'
+                    },
+                    showlegend: false,
+                    opacity: lineColor === 'red' ? 0.3 : 0.7
+                });
+                
+                // Mark agents in outage zones
+                if (dist > simulationState.commRange * 1.2) {
+                    traces.push({
+                        type: 'scatter3d',
+                        mode: 'markers',
+                        x: [agent[0]],
+                        y: [agent[1]],
+                        z: [agent[2]],
+                        marker: {
+                            size: 6,
+                            color: 'red',
+                            symbol: 'x'
+                        },
+                        showlegend: false
+                    });
+                }
+            });
+            
+            // Layout
+            const layout = {
+                title: '4D Digital Twin - Integrated View',
+                scene: {
+                    xaxis: { title: 'X (m)', range: [0, AREA_SIZE] },
+                    yaxis: { title: 'Y (m)', range: [0, AREA_SIZE] },
+                    zaxis: { title: 'Z (m)', range: [0, 40] },
+                    aspectratio: { x: 1, y: 1, z: 0.4 }
+                },
+                margin: { l: 0, r: 0, b: 0, t: 40 }
+            };
+            
+            Plotly.newPlot('plot3', traces, layout);
+        }
+        
+        function updateStatistics() {
+            const totalAgents = simulationState.numScooters + simulationState.numVehicles;
+            const coveragePercent = ((simulationState.losLinks + simulationState.nlosLinks) / totalAgents * 100).toFixed(1);
+            
+            document.getElementById('totalAgents').textContent = totalAgents;
+            document.getElementById('losLinks').textContent = simulationState.losLinks;
+            document.getElementById('nlosLinks').textContent = simulationState.nlosLinks;
+            document.getElementById('detectedTargets').textContent = simulationState.detectedTargets;
+            document.getElementById('coveragePercent').textContent = `${coveragePercent}%`;
+            
+            // Update slider displays
+            document.getElementById('scooterValue').textContent = simulationState.numScooters;
+            document.getElementById('vehicleValue').textContent = simulationState.numVehicles;
+            document.getElementById('rangeValue').textContent = simulationState.commRange;
+        }
+        
+        function setupEventListeners() {
+            // Sliders
+            document.getElementById('numScooters').addEventListener('input', function() {
+                simulationState.numScooters = parseInt(this.value);
+                document.getElementById('scooterValue').textContent = this.value;
+            });
+            
+            document.getElementById('numVehicles').addEventListener('input', function() {
+                simulationState.numVehicles = parseInt(this.value);
+                document.getElementById('vehicleValue').textContent = this.value;
+            });
+            
+            document.getElementById('commRange').addEventListener('input', function() {
+                simulationState.commRange = parseInt(this.value);
+                document.getElementById('rangeValue').textContent = this.value;
+            });
+            
+            // Buttons
+            document.getElementById('runSimulation').addEventListener('click', function() {
+                generateAgents();
+                createAllPlots();
+            });
+            
+            document.getElementById('resetSimulation').addEventListener('click', function() {
+                simulationState.numScooters = 8;
+                simulationState.numVehicles = 5;
+                simulationState.commRange = 70;
+                
+                document.getElementById('numScooters').value = 8;
+                document.getElementById('numVehicles').value = 5;
+                document.getElementById('commRange').value = 70;
+                
+                generateAgents();
+                createAllPlots();
+                updateDisplays();
+            });
+            
+            document.getElementById('exportData').addEventListener('click', function() {
+                exportSimulationData();
+            });
+        }
+        
+        function updateDisplays() {
+            document.getElementById('scooterValue').textContent = simulationState.numScooters;
+            document.getElementById('vehicleValue').textContent = simulationState.numVehicles;
+            document.getElementById('rangeValue').textContent = simulationState.commRange;
+        }
+        
+        function exportSimulationData() {
+            const data = {
+                simulation: simulationState,
+                timestamp: new Date().toISOString(),
+                parameters: {
+                    areaSize: AREA_SIZE,
+                    numBuildings: NUM_BUILDINGS,
+                    gnbPosition: GNB_POS
+                }
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `isac_simulation_${new Date().toISOString().slice(0,10)}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+            
+            alert('Simulation data exported successfully');
+        }
+    </script>
+</body>
+</html>
